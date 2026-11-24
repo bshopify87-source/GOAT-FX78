@@ -419,7 +419,7 @@ label.corr-add{display:inline-block;}
 /* Sessions : une carte = deux images (unité de temps supérieure + unité de temps d'action) */
 .j-bar button.corr-add{font-family:'Inter',sans-serif;}
 .corr-grid.j-list{grid-template-columns:1fr;gap:20px;}
-.j-pair{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));}
+.j-pair{display:grid;grid-template-columns:minmax(0,1fr);}
 .j-img{min-width:0;display:flex;flex-direction:column;border-right:1px solid var(--border);}
 .j-img:last-child{border-right:none;}
 .j-img .img-wrap{border-right:none;border-bottom:none;}
@@ -428,10 +428,23 @@ label.corr-add{display:inline-block;}
 .j-img.act .j-tf{color:var(--teal2);background:rgba(14,165,233,0.12);}
 .j-img.ent .j-tf{color:var(--green2);background:rgba(52,211,153,0.10);}
 .j-tf{flex-wrap:wrap;}
+.j-views{display:inline-flex;flex-wrap:wrap;gap:6px;}
+.j-vbtn{background:var(--bg);color:var(--muted);border:1px solid var(--border);border-radius:3px;font-family:'Inter',sans-serif;font-size:0.66rem;font-weight:600;letter-spacing:0;text-transform:none;padding:4px 10px;cursor:pointer;transition:all 0.2s;}
+.j-vbtn:hover{color:var(--white2);}
+.j-vbtn.on{background:rgba(14,165,233,0.2);border-color:var(--teal2);color:var(--white);}
+.j-img.htf .j-vbtn.on{background:rgba(124,58,237,0.25);border-color:var(--violet2);}
 .j-slot .j-icrit{flex-direction:row;flex-wrap:wrap;align-items:flex-start;gap:6px;padding:10px 12px;margin-top:auto;}
 .j-img .w-crit{margin-top:auto;padding:10px 12px;}
 .j-slot .j-idir{display:flex;flex-wrap:wrap;gap:5px;width:100%;}
 .j-slot .j-idir .corr-btn{flex:1 1 auto;padding:5px 8px;}
+.corr-btn.haussier.on{background:rgba(52,211,153,0.2);border-color:var(--green2);color:var(--green2);}
+.corr-btn.baissier.on{background:rgba(248,113,113,0.2);border-color:#f87171;color:#f87171;}
+.w-dir.haussier{background:rgba(52,211,153,0.2);border-color:var(--green2);color:var(--green2);}
+.w-dir.baissier{background:rgba(248,113,113,0.2);border-color:#f87171;color:#f87171;}
+.w-dir.retracement{background:rgba(251,191,36,0.18);border-color:#fbbf24;color:#fbbf24;}
+.j-sec{width:100%;display:flex;flex-direction:column;gap:6px;}
+.j-sec-t{font-family:'Syne',sans-serif;font-size:0.6rem;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:var(--violet3);}
+.j-ichips{display:flex;flex-wrap:wrap;gap:6px;}
 .corr-btn.retracement.on{background:rgba(251,191,36,0.18);border-color:#fbbf24;color:#fbbf24;}
 .w-dir.retracement{background:rgba(251,191,36,0.18);border-color:#fbbf24;color:#fbbf24;}
 .j-slot .corr-ctl{flex-direction:row;flex-wrap:wrap;align-items:center;gap:10px 22px;padding:12px 14px;}
@@ -600,6 +613,7 @@ const _imgUrlCache = {};
 function _applyImage(key, url) {
   _imgUrlCache[key] = url || null;
   if (key.indexOf('jimg-') === 0 && typeof wRefresh === 'function') wRefresh();
+  if (key.indexOf('jimg-') === 0 && typeof jApply === 'function') { const _jid = key.slice(5).split('-')[0]; if (typeof _J !== 'undefined' && _J[_jid] && !_J[_jid].view && document.getElementById('jc-' + _jid)) jApply(_jid); }
   const imgEl = document.getElementById('img-' + key);
   if (!imgEl) return; // sera appliqué via applyImgCacheToBlock() lors du lazy load
   if (!url) {
@@ -2036,11 +2050,16 @@ function corrDelHist(id) { corrCol('corr_archives').doc(id).delete().catch(e => 
 <script>
 // ══════════════════════════════════════════
 //  SESSIONS AUD / NZD / EUR / GBP — enregistrement simple des images
-//  Une paire + un mois → bouton « Ajouter une image » + date → carte avec 2 emplacements (unité de temps supérieure + unité de temps d'action), Achat/Vente/Neutre et critères.
+//  Une paire + un mois → bouton « Ajouter une image » + date → carte avec UNE image (au choix : unité de temps d'action ou unité de temps supérieure), Achat/Vente/Neutre et critères.
 //  Firestore : journal_images (un doc par carte) ; images dans bilan_images (clés jimg-<id> = temps supérieur, jimg-<id>-act = temps d'action).
 //  L'ancien journal (colonnes par semaine / jour) reste consultable, replié en bas de chaque paire.
 // ══════════════════════════════════════════
-const J_CRIT = [['structure','Structure'],['ote','OTE'],['fvg','FVG'],['zone_poi','POI'],['liquidite','Liquidités'],['session','Liquidités de session'],['confirmation','Confirmation']];
+// Conditions de réaction (chaque élément se sélectionne individuellement). L'ancien critère « Structure » est remplacé par la section « Structure actuelle ».
+const J_CRIT = [['ote','OTE'],['fvg','FVG'],['zone_poi','POI'],['fib','Réaction sur Fibonacci (entre 0,5 et 0,8)'],['liquidite','Liquidité'],['session','Session'],['confirmation','Confirmation']];
+// Structure actuelle : un seul choix
+const J_STRUCT = [['haussier','Tendance haussière'],['baissier','Tendance baissière'],['retracement','Retracement'],['neutre','Neutre']];
+// Scénario : Achat / Vente
+const J_SCEN = [['achat','Achat'],['vente','Vente']];
 const J_DIRS = [['achat','Achat'],['vente','Vente'],['neutre','Neutre'],['retracement','Retracement']];
 let _J = {};
 
@@ -2066,27 +2085,47 @@ function pairContent(moisObj, mId, mLabel, pId, pLabel) {
 }
 function jListHtml(mId, pId) {
   const ids = jIds(mId, pId);
-  return ids.length ? ids.map(jCard).join('') : '<div class="corr-empty" style="grid-column:1/-1;">Aucune image pour cette paire ce mois-ci.<br>Choisis une date puis clique sur « Ajouter une image » : deux emplacements apparaissent (unité de temps supérieure et unité de temps d\'action).</div>';
+  return ids.length ? ids.map(jCard).join('') : '<div class="corr-empty" style="grid-column:1/-1;">Aucune image pour cette paire ce mois-ci.<br>Choisis une date puis clique sur « Ajouter une image » : une image apparaît, avec le choix de l\'unité de temps d\'action ou de l\'unité de temps supérieure.</div>';
 }
 // Trois emplacements par carte, chacun avec ses propres critères (crit / crit_act / crit_3). La clé du 1er garde l'ancien format (jimg-<id>) : les images déjà enregistrées restent visibles.
 const J_RES = [['win','Gagnant'],['loss','Perdant'],['be','Break-even']];
 const J_TFS = ['M1','M5','M15','M30','H1','H4','D1','W1','1 mois','3 mois','6 mois','12 mois'];
 const J_SLOTS = [
-  {suf: '',     cls: 'htf', num: '1', label: 'Unité de temps supérieure', tf: 'tf_htf', ck: 'crit', dk: 'dir'},
-  {suf: '-act', cls: 'act', num: '2', label: 'Unité de temps d\'action', tf: 'tf_act', ck: 'crit_act', dk: 'dir_act'},
-  {suf: '-3',   cls: 'ent', num: '3', label: 'Troisième image', tf: 'tf_3', ck: 'crit_3', dk: 'dir_3'}
+  {suf: '',     v: 'htf', cls: 'htf', num: '1', label: 'Unité de temps supérieure', tf: 'tf_htf', ck: 'crit', dk: 'dir', sk: 'st'},
+  {suf: '-act', v: 'act', cls: 'act', num: '2', label: 'Unité de temps d\'action', tf: 'tf_act', ck: 'crit_act', dk: 'dir_act', sk: 'st_act'},
+  {suf: '-3',   v: '3',   cls: 'ent', num: '3', label: 'Troisième image', tf: 'tf_3', ck: 'crit_3', dk: 'dir_3', sk: 'st_3'}
 ];
+// Une seule image affichée par carte : e.view = 'act' (unité de temps d'action) ou 'htf' (unité de temps supérieure).
+// Les images et informations des autres emplacements restent enregistrées (rien n'est supprimé en changeant de choix).
+function jViewOf(id) {
+  const e = _J[id] || {};
+  if (e.view === 'act' || e.view === 'htf') return e.view;
+  const c = 'jimg-' + id;
+  if (_imgUrlCache[c + '-act']) return 'act';
+  if (_imgUrlCache[c]) return 'htf';
+  if (_imgUrlCache[c + '-3']) return '3';
+  return 'act';
+}
+function jShownSlot(id) { return J_SLOTS.find(s => s.v === jViewOf(id)) || J_SLOTS[1]; }
+function jViewBtns(id) {
+  return '<span class="j-views">' + [['act', 'Unité de temps d\'action'], ['htf', 'Unité de temps supérieure']].map(x =>
+    '<button type="button" class="j-vbtn" data-v="' + x[0] + '" onclick="jSetView(\'' + id + '\',\'' + x[0] + '\')">' + x[1] + '</button>').join('') + '</span>';
+}
+function jSetView(id, v) { jPut(id, {view: v}); }
 function jKeys(id) { return J_SLOTS.map(s => 'jimg-' + id + s.suf); }
 function jSlot(id, si) {
   const s = J_SLOTS[si], key = 'jimg-' + id + s.suf;
-  return '<div class="j-img ' + s.cls + '"><div class="j-tf"><b>' + s.num + '</b>' + s.label
+  return '<div class="j-img ' + s.cls + '" data-v="' + s.v + '"><div class="j-tf">' + (s.v === '3' ? '<span>' + s.label + '</span>' : '') + jViewBtns(id)
     + '<select class="j-tfsel" id="jtf-' + id + s.suf + '" title="Unité de temps" onchange="jSetTf(\'' + id + '\',\'' + s.tf + '\',this.value)"><option value="">—</option>' + J_TFS.map(t => '<option value="' + t + '">' + t + '</option>').join('') + '</select></div>'
     + '<div class="img-wrap">'
     + '<img id="img-' + key + '" src="' + BLANK + '" alt="' + s.label + '" style="min-height:120px;background:var(--surface);">'
     + '<label class="img-upload-label" for="up-' + key + '"><div class="ipi">＋</div><div class="ipt">Image</div>'
     + '<input id="up-' + key + '" type="file" accept="image/*" onchange="uploadImg(\'' + key + '\',this)"></label>'
     + '<button class="img-delete-btn" id="del-' + key + '" onclick="deleteImg(\'' + key + '\')">✕</button></div>'
-    + '<div class="corr-ctl j-icrit"><div class="j-idir">' + J_DIRS.map(d => '<button class="corr-btn ' + d[0] + '" id="jb-' + id + s.suf + '-' + d[0] + '" onclick="jSetDir(\'' + id + '\',' + si + ',\'' + d[0] + '\')">' + d[1] + '</button>').join('') + '</div>' + J_CRIT.map(c => '<button class="corr-chip" id="jk-' + id + s.suf + '-' + c[0] + '" onclick="jToggle(\'' + id + '\',' + si + ',\'' + c[0] + '\')">' + c[1] + '</button>').join('') + '</div></div>';
+    + '<div class="corr-ctl j-icrit">'
+    + '<div class="j-sec"><div class="j-sec-t">Structure actuelle</div><div class="j-idir">' + J_STRUCT.map(d => '<button class="corr-btn ' + d[0] + '" id="js-' + id + s.suf + '-' + d[0] + '" onclick="jSetStruct(\'' + id + '\',' + si + ',\'' + d[0] + '\')">' + d[1] + '</button>').join('') + '</div></div>'
+    + '<div class="j-sec"><div class="j-sec-t">Scénario</div><div class="j-idir">' + J_SCEN.map(d => '<button class="corr-btn ' + d[0] + '" id="jb-' + id + s.suf + '-' + d[0] + '" onclick="jSetDir(\'' + id + '\',' + si + ',\'' + d[0] + '\')">' + d[1] + '</button>').join('') + '</div></div>'
+    + '<div class="j-sec"><div class="j-sec-t">Conditions de réaction</div><div class="j-ichips">' + J_CRIT.map(c => '<button class="corr-chip" id="jk-' + id + s.suf + '-' + c[0] + '" onclick="jToggle(\'' + id + '\',' + si + ',\'' + c[0] + '\')">' + c[1] + '</button>').join('') + '</div></div></div></div>';
 }
 function jCard(id) {
   const e = _J[id], r = jRange(e.m);
@@ -2106,6 +2145,11 @@ function jCard(id) {
 function jApply(id) {
   const e = _J[id], d = document.getElementById('jdt-' + id); if (!e || !d) return;
   d.value = e.date || '';
+  const v = jViewOf(id), card = document.getElementById('jc-' + id);
+  if (card) {
+    card.querySelectorAll('.j-img').forEach(el => { el.style.display = el.dataset.v === v ? '' : 'none'; });
+    card.querySelectorAll('.j-vbtn').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  }
   const nt = document.getElementById('jnote-' + id);
   if (nt && document.activeElement !== nt) nt.value = e.note || '';
   jSyncShow(id);
@@ -2114,7 +2158,8 @@ function jApply(id) {
   const rs = document.getElementById('jr-' + id);
   if (rs) { rs.style.display = e.watch ? 'inline-flex' : 'none'; J_RES.forEach(r => document.getElementById('jrb-' + id + '-' + r[0]).classList.toggle('on', e.result === r[0])); }
   J_SLOTS.forEach(sl => { const sel = document.getElementById('jtf-' + id + sl.suf); if (sel) sel.value = e[sl.tf] || ''; });
-  J_SLOTS.forEach(sl => J_DIRS.forEach(x => document.getElementById('jb-' + id + sl.suf + '-' + x[0]).classList.toggle('on', e[sl.dk] === x[0])));
+  J_SLOTS.forEach(sl => J_SCEN.forEach(x => document.getElementById('jb-' + id + sl.suf + '-' + x[0]).classList.toggle('on', e[sl.dk] === x[0])));
+  J_SLOTS.forEach(sl => J_STRUCT.forEach(x => document.getElementById('js-' + id + sl.suf + '-' + x[0]).classList.toggle('on', e[sl.sk] === x[0])));
   J_SLOTS.forEach(sl => { const cr = e[sl.ck] || {}; J_CRIT.forEach(c => document.getElementById('jk-' + id + sl.suf + '-' + c[0]).classList.toggle('on', !!cr[c[0]])); });
 }
 function jRenderPair(mId, pId) {
@@ -2180,6 +2225,7 @@ window.addEventListener('beforeunload', e => {
   if (_jUnsynced.size || _syncPending) { e.preventDefault(); e.returnValue = ''; }
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden) Object.keys(_jNoteTimers).forEach(jNoteFlush); });
+function jSetStruct(id, si, v) { const k = J_SLOTS[si].sk, p = {}; p[k] = (_J[id] && _J[id][k] === v) ? '' : v; jPut(id, p); }
 function jSetDir(id, si, dir) { const k = J_SLOTS[si].dk, p = {}; p[k] = (_J[id] && _J[id][k] === dir) ? '' : dir; jPut(id, p); }
 function jToggle(id, si, k) { const ck = J_SLOTS[si].ck, on = !!(_J[id] && _J[id][ck] && _J[id][ck][k]), c = {}, p = {}; c[k] = !on; p[ck] = c; jPut(id, p); }
 function jSetDate(id, v) {
@@ -2187,7 +2233,7 @@ function jSetDate(id, v) {
   jPut(id, {date: v}); jRenderPair(_J[id].m, _J[id].pair);
 }
 function jDel(id) {
-  if (!confirm('Supprimer ces deux images, leurs informations et leurs notes ?')) return;
+  if (!confirm('Supprimer cette analyse (image, informations et notes) ?')) return;
   const e = _J[id]; jKeys(id).forEach(k => deleteImg(k)); delete _J[id]; delete _jSt[id]; _jUnsynced.delete(id); wRefresh();
   jCol().doc(id).delete().catch(corrErr('image'));
   if (e) jRenderPair(e.m, e.pair);
@@ -2195,7 +2241,7 @@ function jDel(id) {
 function jAdd(mId, pId) {
   const dEl = document.getElementById('jd-' + mId + '-' + pId), date = dEl && dEl.value;
   if (!date) { corrToast('Renseigne d\'abord la date des images.'); return; }
-  const ref = jCol().doc(), data = {m: mId, pair: pId, date: date, dir: '', crit: {}, ts: Date.now()};
+  const ref = jCol().doc(), data = {m: mId, pair: pId, date: date, view: 'act', dir: '', crit: {}, ts: Date.now()};
   _J[ref.id] = data;
   ref.set(data).catch(corrErr('image'));
   jRenderPair(mId, pId);
@@ -2241,11 +2287,12 @@ function _wItems() {
   return Object.keys(_J).filter(id => _J[id] && _J[id].watch).map(id => Object.assign({id: id}, _J[id]))
     .sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.ts || 0) - (a.ts || 0));
 }
+function _wTf(e) { return e[jShownSlot(e.id).tf]; }
 function _wFilter(items) {
   const rg = _wRange(_W.period);
   return items.filter(e => (!rg || ((e.date || '') >= rg[0] && (e.date || '') <= rg[1]))
     && (_W.pair === 'all' || e.pair === _W.pair)
-    && (_W.tf === 'all' || e.tf_htf === _W.tf || e.tf_act === _W.tf));
+    && (_W.tf === 'all' || _wTf(e) === _W.tf));
 }
 function _wRow(label, key, opts) {
   return '<div class="w-frow"><span class="corr-reslab">' + label + '</span>'
@@ -2257,11 +2304,12 @@ function wCard(e) {
   const note = (e.note || '').trim();
   const rr = J_RES.find(x => x[0] === e.result);
   const resBtns = '<div class="j-res" style="display:inline-flex;margin-right:auto"><span class="corr-reslab">Résultat</span>' + J_RES.map(r => '<button class="j-resbtn ' + r[0] + (e.result === r[0] ? ' on' : '') + '" onclick="jSetResult(\'' + e.id + '\',\'' + r[0] + '\')">' + r[1] + '</button>').join('') + '</div>';
-  const slots = J_SLOTS.map(s => {
+  const slots = [jShownSlot(e.id)].map(s => {
     const key = 'jimg-' + e.id + s.suf, tf = e[s.tf], cr = e[s.ck] || {};
     const dr = J_DIRS.find(x => x[0] === e[s.dk]);
-    const chips = (dr ? '<span class="w-dir ' + dr[0] + '">' + dr[1] + '</span>' : '') + J_CRIT.filter(c => cr[c[0]]).map(c => '<span class="w-chip">' + c[1] + '</span>').join('') || '<span class="w-none">Aucun critère</span>';
-    return '<div class="j-img ' + s.cls + '"><div class="j-tf"><b>' + s.num + '</b>' + s.label + (tf ? '<span class="w-tf">' + tf + '</span>' : '') + '</div>'
+    const stc = J_STRUCT.find(x => x[0] === e[s.sk]);
+    const chips = (stc ? '<span class="w-dir ' + stc[0] + '">' + stc[1] + '</span>' : '') + (dr ? '<span class="w-dir ' + dr[0] + '">' + dr[1] + '</span>' : '') + J_CRIT.filter(c => cr[c[0]]).map(c => '<span class="w-chip">' + c[1] + '</span>').join('') || '<span class="w-none">Aucun critère</span>';
+    return '<div class="j-img ' + s.cls + '"><div class="j-tf">' + s.label + (tf ? '<span class="w-tf">' + tf + '</span>' : '') + '</div>'
       + '<div class="img-wrap">' + (_imgUrlCache[key] ? '<img class="has-img" data-wk="' + key + '" alt="' + s.label + '">' : '<div class="w-noimg">Pas d\'image</div>') + '</div>'
       + '<div class="w-crit">' + chips + '</div></div>';
   }).join('');
@@ -2279,7 +2327,7 @@ function wRender() {
   const page = document.getElementById('page-watch'), box = document.getElementById('watch-body');
   if (!page || !box || !page.classList.contains('active')) return;
   const pairs = Array.from(new Set(all.map(e => e.pair)));
-  const tfs = J_TFS.filter(t => all.some(e => e.tf_htf === t || e.tf_act === t));
+  const tfs = J_TFS.filter(t => all.some(e => _wTf(e) === t));
   if (_W.pair !== 'all' && pairs.indexOf(_W.pair) < 0) _W.pair = 'all';
   if (_W.tf !== 'all' && tfs.indexOf(_W.tf) < 0) _W.tf = 'all';
   let h;
@@ -2304,8 +2352,12 @@ const W_COMBOS = [
   ['structure', 'ote', 'liquidite', 'session'],
   ['structure', 'fvg', 'liquidite', 'session']
 ];
-function _wCrits(e) { return J_CRIT.map(c => c[0]).filter(k => J_SLOTS.some(sl => e[sl.ck] && e[sl.ck][k])); }
-function _wCl(k) { const c = J_CRIT.find(x => x[0] === k); return c ? c[1] : k; }
+function _wCrits(e) {
+  return ['structure'].concat(J_CRIT.map(c => c[0])).filter(k => J_SLOTS.some(sl => k === 'structure'
+    ? (['haussier', 'baissier', 'retracement'].indexOf(e[sl.sk]) > -1 || (e[sl.ck] && e[sl.ck].structure))
+    : (e[sl.ck] && e[sl.ck][k])));
+}
+function _wCl(k) { if (k === 'structure') return 'Structure'; const c = J_CRIT.find(x => x[0] === k); return c ? (k === 'fib' ? 'Fibonacci' : c[1]) : k; }
 function _wAdd(x, res) { x.n++; if (res === 'win') x.w++; else if (res === 'loss') x.l++; else x.b++; }
 function _wFin(x) { x.dec = x.w + x.l; x.rate = x.dec ? x.w / x.dec : null; return x; }
 function _wCmp(a, b) { return (b.rate - a.rate) || (b.dec - a.dec); }
@@ -2346,7 +2398,7 @@ function wStatsHtml(items) {
   let ids = Object.keys(R).sort((a, b) => R[b].tot.n - R[a].tot.n);
   if (_W.pair !== 'all') ids = ids.filter(p => p === _W.pair);
   let h = '<div class="w-stats"><div class="j-notes-title">Statistiques et recommandations par paire</div>'
-    + '<div class="w-stats-sub">Trois combinaisons suivies, calculées sur tes trades surveillés dont le résultat est renseigné (Gagnant / Perdant / Break-even). Les critères des trois images sont regroupés : un trade compte dans une combinaison s\'il les a tous cochés. Recommandation à partir de ' + W_MIN + ' trades gagnants ou perdants par combinaison.</div>';
+    + '<div class="w-stats-sub">Trois combinaisons suivies, calculées sur tes trades surveillés dont le résultat est renseigné (Gagnant / Perdant / Break-even). Les critères d\'une analyse sont regroupés : un trade compte dans une combinaison s\'il les a tous cochés. Recommandation à partir de ' + W_MIN + ' trades gagnants ou perdants par combinaison.</div>';
   if (!ids.length) {
     h += '<div class="w-reco info">' + (Object.keys(R).length ? 'Aucun trade clôturé sur cette paire pour l\'instant.' : 'Renseigne le résultat de tes trades surveillés (boutons « Gagnant / Perdant / Break-even ») pour voir apparaître les statistiques et les recommandations.') + '</div>';
   } else {
