@@ -514,6 +514,8 @@ label.corr-add{display:inline-block;}
 .note-saved.wait,.note-saved.err{color:#f87171;}
 #sync-pill{position:fixed;left:16px;bottom:16px;z-index:9997;display:none;background:#78350f;color:#fff;padding:9px 14px;border-radius:4px;font-size:0.74rem;max-width:80vw;box-shadow:0 4px 24px rgba(0,0,0,0.5);}
 #sync-pill.show{display:block;}#sync-pill.warn{background:#7f1d1d;}
+#img-pill{position:fixed;left:16px;bottom:60px;z-index:9997;display:none;background:#78350f;color:#fff;padding:9px 14px;border-radius:4px;font-size:0.74rem;max-width:80vw;box-shadow:0 4px 24px rgba(0,0,0,0.5);}
+#img-pill.show{display:block;}#img-pill.warn{background:#7f1d1d;}
 .j-slot .corr-foot .corr-date{flex:0 0 auto;width:auto;}
 @media(max-width:700px){
   .j-pair{grid-template-columns:1fr;}
@@ -652,13 +654,35 @@ function _fbListenImages() {
           _applyImage(key, data.url);
         }
       });
+    }, err => {
+      console.error('lecture des images', err);
+      if (typeof corrToast === 'function') corrToast('⚠ Impossible de lire les images sur Firebase : ' + (err && err.message ? err.message : err));
     });
 }
 
+// Suivi des envois d'images : tant qu'une image n'est pas arrivée sur Firebase, on prévient avant de fermer / actualiser la page
+let _imgPending = 0, _imgPillT = null;
+function _imgPill() {
+  let p = document.getElementById('img-pill');
+  if (!p) { p = document.createElement('div'); p.id = 'img-pill'; document.body.appendChild(p); }
+  clearTimeout(_imgPillT);
+  if (!_imgPending) { p.className = ''; return; }
+  p.textContent = '⏳ Envoi de l\'image vers Firebase… ne ferme pas et n\'actualise pas la page'; p.className = 'show';
+  _imgPillT = setTimeout(() => { if (_imgPending) { p.textContent = '⚠ L\'image n\'est toujours pas arrivée sur Firebase (connexion ?)'; p.className = 'show warn'; } }, 8000);
+}
 async function fbSaveImage(key, b64) {
+  _imgPending++; _imgPill();
   try {
     await _fbDocImage(key).set({ url: b64, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-  } catch(e) { console.error('fbSaveImage error:', e); if (typeof corrToast === 'function') corrToast('⚠ Image non enregistrée : ' + e.message); }
+    _imgPending--; _imgPill();
+    return true;
+  } catch(e) {
+    _imgPending--; _imgPill();
+    console.error('fbSaveImage error:', e);
+    _applyImage(key, _imgUrlCache[key] || null); // l'image n'est pas enregistrée : on ne la laisse pas affichée comme si elle l'était
+    if (typeof corrToast === 'function') corrToast('⚠ Image NON enregistrée sur Firebase : ' + (e && e.message ? e.message : e));
+    return false;
+  }
 }
 
 async function fbRemoveImage(key) {
@@ -750,16 +774,12 @@ const DEVISES = [
     {id:'aud-usd', label:'AUD/USD', dot:'d-usd'},
     {id:'aud-sgd', label:'AUD/SGD', dot:'d-sgd'},
     {id:'aud-jpy', label:'AUD/JPY', dot:'d-jpy'},
-    {id:'aud-chf', label:'AUD/CHF', dot:'d-chf'},
-    {id:'aud-cad', label:'AUD/CAD', dot:'d-cad'},
     {id:'aud-nzd', label:'AUD/NZD', dot:'d-nzd'},
   ]},
   {id:'eur', label:'EUR', pairs:[
     {id:'eur-usd', label:'EUR/USD', dot:'d-usd'},
     {id:'eur-sgd', label:'EUR/SGD', dot:'d-sgd'},
     {id:'eur-jpy', label:'EUR/JPY', dot:'d-jpy'},
-    {id:'eur-chf', label:'EUR/CHF', dot:'d-chf'},
-    {id:'eur-cad', label:'EUR/CAD', dot:'d-cad'},
     {id:'eur-nzd', label:'EUR/NZD', dot:'d-nzd'},
     {id:'eur-aud', label:'EUR/AUD', dot:'d-aud'},
     {id:'eur-gbp', label:'EUR/GBP', dot:'d-gbp'},
@@ -768,8 +788,6 @@ const DEVISES = [
     {id:'gbp-usd', label:'GBP/USD', dot:'d-usd'},
     {id:'gbp-sgd', label:'GBP/SGD', dot:'d-sgd'},
     {id:'gbp-jpy', label:'GBP/JPY', dot:'d-jpy'},
-    {id:'gbp-chf', label:'GBP/CHF', dot:'d-chf'},
-    {id:'gbp-cad', label:'GBP/CAD', dot:'d-cad'},
     {id:'gbp-nzd', label:'GBP/NZD', dot:'d-nzd'},
     {id:'gbp-aud', label:'GBP/AUD', dot:'d-aud'},
   ]},
@@ -777,8 +795,6 @@ const DEVISES = [
     {id:'nzd-usd', label:'NZD/USD', dot:'d-usd'},
     {id:'nzd-sgd', label:'NZD/SGD', dot:'d-sgd'},
     {id:'nzd-jpy', label:'NZD/JPY', dot:'d-jpy'},
-    {id:'nzd-chf', label:'NZD/CHF', dot:'d-chf'},
-    {id:'nzd-cad', label:'NZD/CAD', dot:'d-cad'},
   ]},
 ];
 
@@ -2222,7 +2238,7 @@ function jSyncPill(pending) {
 }
 window.addEventListener('beforeunload', e => {
   Object.keys(_jNoteTimers).forEach(jNoteFlush);
-  if (_jUnsynced.size || _syncPending) { e.preventDefault(); e.returnValue = ''; }
+  if (_jUnsynced.size || _syncPending || _imgPending) { e.preventDefault(); e.returnValue = ''; }
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden) Object.keys(_jNoteTimers).forEach(jNoteFlush); });
 function jSetStruct(id, si, v) { const k = J_SLOTS[si].sk, p = {}; p[k] = (_J[id] && _J[id][k] === v) ? '' : v; jPut(id, p); }
