@@ -1648,8 +1648,10 @@ function initNavDrag() {
 function initSectionObserver() {
   const obs = new IntersectionObserver(entries => {
     entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible'); });
-  }, {threshold:0.08});
+  }, {threshold:0});  // 0 = dès qu'un pixel est visible (avec 0.08, une section très haute pleine d'images n'atteignait jamais 8 % → page noire)
   document.querySelectorAll('.pair-block.active .section').forEach(s => { s.classList.remove('visible'); obs.observe(s); });
+  // Filet de sécurité : quoi qu'il arrive, aucune section ne reste invisible
+  setTimeout(() => document.querySelectorAll('.pair-block.active .section').forEach(s => s.classList.add('visible')), 1200);
 }
 
 // ══════════════════════════════════════════
