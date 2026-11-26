@@ -773,28 +773,21 @@ const DEVISES = [
   {id:'aud', label:'AUD', pairs:[
     {id:'aud-usd', label:'AUD/USD', dot:'d-usd'},
     {id:'aud-sgd', label:'AUD/SGD', dot:'d-sgd'},
-    {id:'aud-jpy', label:'AUD/JPY', dot:'d-jpy'},
-    {id:'aud-nzd', label:'AUD/NZD', dot:'d-nzd'},
   ]},
   {id:'eur', label:'EUR', pairs:[
     {id:'eur-usd', label:'EUR/USD', dot:'d-usd'},
     {id:'eur-sgd', label:'EUR/SGD', dot:'d-sgd'},
-    {id:'eur-jpy', label:'EUR/JPY', dot:'d-jpy'},
-    {id:'eur-nzd', label:'EUR/NZD', dot:'d-nzd'},
-    {id:'eur-aud', label:'EUR/AUD', dot:'d-aud'},
-    {id:'eur-gbp', label:'EUR/GBP', dot:'d-gbp'},
   ]},
   {id:'gbp', label:'GBP', pairs:[
     {id:'gbp-usd', label:'GBP/USD', dot:'d-usd'},
     {id:'gbp-sgd', label:'GBP/SGD', dot:'d-sgd'},
-    {id:'gbp-jpy', label:'GBP/JPY', dot:'d-jpy'},
-    {id:'gbp-nzd', label:'GBP/NZD', dot:'d-nzd'},
-    {id:'gbp-aud', label:'GBP/AUD', dot:'d-aud'},
   ]},
   {id:'nzd', label:'NZD', pairs:[
     {id:'nzd-usd', label:'NZD/USD', dot:'d-usd'},
     {id:'nzd-sgd', label:'NZD/SGD', dot:'d-sgd'},
-    {id:'nzd-jpy', label:'NZD/JPY', dot:'d-jpy'},
+  ]},
+  {id:'dxy', label:'DXY', pairs:[
+    {id:'dxy', label:'DXY', dot:'d-usd'},
   ]},
 ];
 
@@ -1071,7 +1064,7 @@ function buildAll() {
 
       const pageHtml = '<div class="page' + (firstPage?' active':'') + '" id="page-' + pid + '">'
         + '<div class="page-header">'
-        + '<div class="ph-eyebrow">Bilan ' + mois.num + ' — Paires ' + devise.label + '</div>'
+        + '<div class="ph-eyebrow">Bilan ' + mois.num + ' — ' + (devise.id === 'dxy' ? 'Session ' : 'Paires ') + devise.label + '</div>'
         + '<div class="ph-title">' + mois.label + '</div>'
         + '<div class="ph-title-year">' + mois.year + '</div>'
         + '<div class="ph-sub">Analyse jour par jour — H1 · M15 · M5</div>'
